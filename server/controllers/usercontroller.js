@@ -1,10 +1,11 @@
 import User from "../models/user.js";
 import bcrypt from "bcrypt";
+import {genratedToken} from "../lib/utils.js"
+import cloudinary from "../lib/cloudinary.js";
 
 
 
 //signup a new user 
-
 export const signupUser = async (req, res) => {
         const { username, email, password, bio } = req.body;
 
@@ -41,6 +42,61 @@ export const signupUser = async (req, res) => {
         } 
 }
 
-//controller to login a user 
+//controller to login a user
+export const loginUser = async (req, res) => {
+    try{
+        const { email, password } = req.body;
+
+        const user = await User.findOne({ email });
+
+        const isPasswordcorrect  = await bcrypt.compare(password, user.password);
+
+        if(!user || !isPasswordcorrect){
+            return res.status(400).json({ message: "Invalid email or password" });
+        }
+
+        const token = generateToken(user._id);
+
+        res.json({ success:true , token, user: user ,message: "User logged in successfully" });
+
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false , message: "User not  logged in " });
+    }
+
+}
+
+//controller to check if user is authorized or not
+export const checkUser = async (req, res) => {
+    res.json({ success:true , user: req.user ,message: "User is authorized" });
+}
+
+
+//controller to update user profile
+export const updateProfile = async (req, res) => {
+    try{
+        const { username, email, bio } = req.body;
+
+        const userId = await User.findById(req.user._id);
+        const updateUser ;
+
+        if(!profilepic)
+        {
+            updateUser = await User.findByIdAndUpdate(userId, { username, email, bio }, { new: true });
+        }
+        else{
+            const upload = await cloudinary.uploader.upload(profilepic) ;
+            
+            updateUser = await User.findByIdAndUpdate(userId, { username, email, bio, profilepic: upload.secure_url }, { new: true });
+        }
+
+        res.json({ success:true , user: updateUser ,message: "User profile updated successfully" });
+        }
+        catch(err)
+        {
+            res.json({success:false , message : err.message}) ;
+        }
+    }
+
 
 

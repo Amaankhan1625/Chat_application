@@ -1,0 +1,24 @@
+
+
+//Middleware to protect routes
+export const protect = async (req,res,next) => {
+
+    try{
+        const token = req.headers.token ;
+
+        const decode = jwt.verify(token, process.env.JWT_SECRET) ;
+
+        const user = await User.findbyId(decode.userId).select("-password") ;
+        
+        if(!user){
+            return res.status(401).json({message: "Not authorized, user not found"}) ;
+        }
+
+        req.user = user ;
+        next() ;
+    }catch(err){
+        console.error(err.message) ;
+        res.status(401).json({message: "Not authorized, token failed"}) ;
+    }
+
+}
