@@ -1,6 +1,6 @@
-import User from "../models/user.js";
+import User from "../model/user.js";
 import bcrypt from "bcrypt";
-import {genratedToken} from "../lib/utils.js"
+import {genrateToken} from "../lib/utils.js"
 import cloudinary from "../lib/cloudinary.js";
 
 
@@ -78,7 +78,7 @@ export const updateProfile = async (req, res) => {
         const { username, email, bio } = req.body;
 
         const userId = await User.findById(req.user._id);
-        const updateUser ;
+        let updateUser 
 
         if(!profilepic)
         {
