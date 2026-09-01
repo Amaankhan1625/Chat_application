@@ -7,7 +7,12 @@ import Profilepage from './pages/Profilepage'
 import {Toaster} from 'react-hot-toast'
 import {AuthContext} from '../context/Authcontext.jsx'
 const App = () => { 
-  const {authUser} = useContext(AuthContext) ;  
+  const {authUser, isAuthChecked} = useContext(AuthContext) ;
+
+  if(!isAuthChecked){
+    return null;
+  }
+
   return (
     <div className="bg-[url('./src/assets/bgImage.svg')] bg-contain">
       <Toaster/>
@@ -20,4 +25,4 @@ const App = () => {
   )
 }
 
-export default App
+export default App;

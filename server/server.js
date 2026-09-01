@@ -17,24 +17,27 @@ export const io = new Server(server,{
 })
 
 //store online users
-export const usersocketMap = {} ; //{userId : socketId}
+export const usersocketMap = {}; //{userId : socketId}
 
 //socket.io connection handler
 io.on("connection", (socket) => {
     const userId = socket.handshake.query.userId;
     console.log(`User connected: ${userId}`);
 
-    if(userId) usersocketMap[userId] = socket.id;
-    
-    //emit online user to all connected user
-   io.emit("getonlineUsers",Object.keys(usersocketMap)) ;
+    if (userId) {
+        usersocketMap[userId] = socket.id;
+    }
 
-   socket.on("disconnect", () => {
-    console.log(`User disconnected: ${userId}`);
-    if(userId) delete usersocketMap[userId] ;
-    io.emit("getonlineUsers",Object.keys(usersocketMap)) ;
-   })
-})
+    io.emit("onlineUsers", Object.keys(usersocketMap));
+
+    socket.on("disconnect", () => {
+        console.log(`User disconnected: ${userId}`);
+        if (userId) {
+            delete usersocketMap[userId];
+        }
+        io.emit("onlineUsers", Object.keys(usersocketMap));
+    });
+});
 
 //middleware
 app.use(cors());
@@ -47,8 +50,8 @@ await connectDB() ;
 
 //routes
 app.use("/api/status", (req,res)=>res.send({status:"ok"}));
-app.use("/api/auth",userRouter);
-app.use("/api/messages",messageRouter)
+app.use("/api/user",userRouter);
+app.use("/api/message",messageRouter)
 
 
 

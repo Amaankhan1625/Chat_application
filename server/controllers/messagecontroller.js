@@ -7,21 +7,24 @@ import { usersocketMap, io } from '../server.js';
 //get all user except the current user
 export const getAllUsers = async (req, res) => {
     try {
-        const user = req.user._id ;
-        const filteredUsers = await User.find({ _id: { $ne: req.params.id } }).select('-password');
+        const currentUserId = req.user._id;
+        const filteredUsers = await User.find({ _id: { $ne: currentUserId } }).select('-password');
 
-        //count number of messages not seen by the current user
-        const unseenMessages = {} ;
-        const promises = filteredUsers.map(async (user) => {
-            const messages = await Message.countDocuments({ senderId: user._id, receiverId: req.params.id, seen: false });
-            if(messages.length > 0)
-            {
-                unseenmessages[user._id] = messages.length ;
+        const unseenMessages = {};
+
+        for (const user of filteredUsers) {
+            const messagesCount = await Message.countDocuments({
+                senderId: user._id,
+                receiverId: currentUserId,
+                seen: false,
+            });
+
+            if (messagesCount > 0) {
+                unseenMessages[user._id.toString()] = messagesCount;
             }
-        });
+        }
 
-        await Promise.all(promises);
-        res.json({success:true , users: filteredUsers, unseenMessages });
+        res.json({ success: true, users: filteredUsers, unseenMessages });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -29,60 +32,78 @@ export const getAllUsers = async (req, res) => {
 
 // get all messages for selected users
 export const getMessages = async (req, res) => {
-    try{
-       const {id : selectedUserId} = req.params;
-       const myId = req.user._id ;
-       
-       const messages = await Message.find({
-        $or : [
-            {senderId : myId , receiverId : selectedUserId},
-            {senderId : selectedUserId , receiverId : myId}
-        ]
-       })
-       await Message.updateMany({senderId : selectedUserId , receiverId : myId , seen : false} , {seen : true}) ;
-    res.json({success:true , messages})
-    }catch(error){
+    try {
+        const { id: selectedUserId } = req.params;
+        const myId = req.user._id;
+
+        const messages = await Message.find({
+            $or: [
+                { senderId: myId, receiverId: selectedUserId },
+                { senderId: selectedUserId, receiverId: myId },
+            ],
+        });
+
+        await Message.updateMany(
+            { senderId: selectedUserId, receiverId: myId, seen: false },
+            { seen: true }
+        );
+
+        res.json({ success: true, messages });
+    } catch (error) {
         res.status(500).json({ error: error.message });
     }
-}
+};
 
-//api to mark message as seen using message id 
-export const markMessageAsSeen = async(req,res)=>{
-    try{
-     const {id} = req.params ;
-     await Message.findbyIdandupdate(id,{seen:true})
-     res.json({success:true}) 
-     
-    }catch(error){
-res.json({success:false , message : error.message})
+//api to mark message as seen using message id
+export const markMessageAsSeen = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await Message.findByIdAndUpdate(id, { seen: true });
+        res.json({ success: true });
+    } catch (error) {
+        res.json({ success: false, message: error.message });
     }
-}
+};
 
 //send message to selected user
 export const sendMessage = async (req, res) => {
-    try{
-       const {text,image} = req.body ;
-       const receiverId = req.params.id ;
-       const senderId = req.user._id ;
-      
-       let imageurl ;
+    try {
+        const { text, image } = req.body;
+        const receiverId = req.params.id;
+        const senderId = req.user._id;
 
-       if(image){
-        const uploadResponse = await cloudinary.uploader.upload(image)
-        imageurl = uploadResponse.secure_url ;
-       }
-       const message = await Message.create({senderId , receiverId , text , image:imageurl}) ;
+        if (!text?.trim() && !image) {
+            return res.status(400).json({
+                success: false,
+                message: "Message cannot be empty",
+            });
+        }
 
-       //emit message to receiver if online
-         const receiverSocketId = usersocketMap[receiverId] ;
-         if(receiverSocketId){
-            io.to(receiverSocketId).emit("newMessage",message) ;
-         }
+        let imageurl;
 
-       res.json({success:true , message})
-    }catch(error){
-        res.json({success:false , message : error.message})
+        if (image) {
+            const uploadResponse = await cloudinary.uploader.upload(image);
+            imageurl = uploadResponse.secure_url;
+        }
+
+        const message = await Message.create({
+            senderId,
+            receiverId,
+            text: text?.trim() || undefined,
+            image: imageurl,
+        });
+
+        //emit message to receiver if online
+        const receiverSocketId = usersocketMap[receiverId.toString()];
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit("newMessage", message);
+        }
+
+        res.status(201).json({ success: true, message });
+    } catch (error) {
+        console.error("SEND MESSAGE ERROR:", error);
+        res.status(500).json({ success: false, message: error.message });
     }
-}
+};
 
 //

@@ -33,11 +33,11 @@ export const signupUser = async (req, res) => {
 
             await newUser.save();
 
-           const token = generateToken(newUser._id);
+           const token = genrateToken(newUser._id);
             res.status(201).json({ success:true , token, user: newUser ,message: "User created successfully" });
 
         } catch (error) {
-            console.log(error.meassage);
+            console.log(error.message);
              res.json({ success: false , message: "User not  created " });
         } 
 }
@@ -49,13 +49,17 @@ export const loginUser = async (req, res) => {
 
         const user = await User.findOne({ email });
 
-        const isPasswordcorrect  = await bcrypt.compare(password, user.password);
-
-        if(!user || !isPasswordcorrect){
+        if(!user){
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
-        const token = generateToken(user._id);
+        const isPasswordcorrect  = await bcrypt.compare(password, user.password);
+
+        if(!isPasswordcorrect){
+            return res.status(400).json({ message: "Invalid email or password" });
+        }
+
+        const token = genrateToken(user._id);
 
         res.json({ success:true , token, user: user ,message: "User logged in successfully" });
 
@@ -75,9 +79,10 @@ export const checkUser = async (req, res) => {
 //controller to update user profile
 export const updateProfile = async (req, res) => {
     try{
-        const { username, email, bio } = req.body;
+        const { username, email, bio , profilepic} = req.body;
+        const userId = req.user._id;
 
-        const userId = await User.findById(req.user._id);
+       // const userId = await User.findById(req.user._id);
         let updateUser 
 
         if(!profilepic)
@@ -97,6 +102,31 @@ export const updateProfile = async (req, res) => {
             res.json({success:false , message : err.message}) ;
         }
     }
+
+//controller to get all users
+export const getallUsers = async (req, res) => {
+    try {
+        const userId = req.user._id;
+
+        const users = await User
+            .find({ _id: { $ne: userId } })
+            .select("-password");
+
+        res.status(200).json({
+            success: true,
+            users,
+            unseenMessages: {}
+        });
+
+    } catch (error) {
+        console.log(error.message);
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
 
 
 
